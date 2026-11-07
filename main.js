@@ -37,7 +37,12 @@ function splitRealMesh(mesh,photorealMeshes){
     if(uv)for(let j=0;j<3;j++){const q=j*2;bucket.uvs.push(uv.getX(i+j),uv.getY(i+j))}
   }
   mesh.visible=false;
-  buckets.forEach((bucket,id)=>{if(!bucket.positions.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(bucket.positions,3));if(bucket.normals.length)g.setAttribute('normal',new THREE.Float32BufferAttribute(bucket.normals,3));else g.computeVertexNormals();if(bucket.uvs.length)g.setAttribute('uv',new THREE.Float32BufferAttribute(bucket.uvs,2));const part=new THREE.Mesh(g,mesh.material);part.name=`${mesh.name}-${id}`;part.position.copy(mesh.position);part.quaternion.copy(mesh.quaternion);part.scale.copy(mesh.scale);part.castShadow=true;part.receiveShadow=true;part.userData.partId=id;mesh.parent.add(part);photorealMeshes.get(id).push(part)});
+  // A split geometry has no material groups. Passing a multi-material array
+  // here makes Three.js skip the draw call, which leaves some GLB models
+  // apparently "loaded" but invisible. The source materials were already
+  // normalized by makePhotorealWhite(), so one material is sufficient.
+  const material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
+  buckets.forEach((bucket,id)=>{if(!bucket.positions.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(bucket.positions,3));if(bucket.normals.length)g.setAttribute('normal',new THREE.Float32BufferAttribute(bucket.normals,3));else g.computeVertexNormals();if(bucket.uvs.length)g.setAttribute('uv',new THREE.Float32BufferAttribute(bucket.uvs,2));const part=new THREE.Mesh(g,material);part.name=`${mesh.name}-${id}`;part.position.copy(mesh.position);part.quaternion.copy(mesh.quaternion);part.scale.copy(mesh.scale);part.castShadow=true;part.receiveShadow=true;part.userData.partId=id;mesh.parent.add(part);photorealMeshes.get(id).push(part)});
 }
 function fitRealModel(model,rotation){
   model.rotation.set(...rotation);model.scale.setScalar(1);model.updateMatrixWorld(true,true);
