@@ -36,13 +36,15 @@ function splitRealMesh(mesh,photorealMeshes){
     if(normal)for(let j=0;j<3;j++){const n=new THREE.Vector3().fromBufferAttribute(normal,i+j);bucket.normals.push(n.x,n.y,n.z)}
     if(uv)for(let j=0;j<3;j++){const q=j*2;bucket.uvs.push(uv.getX(i+j),uv.getY(i+j))}
   }
-  mesh.visible=false;
   // A split geometry has no material groups. Passing a multi-material array
   // here makes Three.js skip the draw call, which leaves some GLB models
   // apparently "loaded" but invisible. The source materials were already
   // normalized by makePhotorealWhite(), so one material is sufficient.
   const material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
   buckets.forEach((bucket,id)=>{if(!bucket.positions.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(bucket.positions,3));if(bucket.normals.length)g.setAttribute('normal',new THREE.Float32BufferAttribute(bucket.normals,3));else g.computeVertexNormals();if(bucket.uvs.length)g.setAttribute('uv',new THREE.Float32BufferAttribute(bucket.uvs,2));const part=new THREE.Mesh(g,material);part.name=`${mesh.name}-${id}`;part.position.copy(mesh.position);part.quaternion.copy(mesh.quaternion);part.scale.copy(mesh.scale);part.castShadow=true;part.receiveShadow=true;part.userData.partId=id;mesh.parent.add(part);photorealMeshes.get(id).push(part)});
+  // Hide the source only after every split mesh was created. If mobile Safari
+  // fails during segmentation, a loaded model must remain visible.
+  mesh.visible=false;
 }
 function fitRealModel(model,rotation){
   model.rotation.set(...rotation);model.scale.setScalar(1);model.updateMatrixWorld(true,true);
@@ -62,10 +64,33 @@ const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b1020,9,34);const camer
 scene.add(new THREE.HemisphereLight(0xbcd7ff,0x131829,2.1));const key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(4,8,5);key.castShadow=true;scene.add(key);const rim=new THREE.PointLight(0x7ee7de,13,12);rim.position.set(-4,3,-4);scene.add(rim);const root=new THREE.Group();scene.add(root);root.visible=false;
 const photorealSpecs={real:{url:'./assets/model-3-heritage/scene.gltf',rotation:[-Math.PI/2,0,0]},'highland-2026':{url:'./assets/model-3-highland-2026/model.glb',rotation:[-Math.PI/2,0,-Math.PI/2]}};
 function activateRealBackup(){const backup=photorealRoots.get('real');if(!backup?.userData.loaded)return false;modelSource='real';const select=document.querySelector('#modelSelect');if(select)select.value='real';photorealRoots.forEach((modelRoot,key)=>{modelRoot.visible=key==='real'});frameRealModel(backup);update();flash('Highland indisponibil · Model 3 fotorealist activ');return true}
-function loadRealModel(source,url,rotation){
+function loadRealModelLegacy(source,url,rotation){
   if(photorealRoots.has(source))return;
   const partMeshes=new Map(PARTS.map(p=>[p.id,[]])),modelRoot=new THREE.Group();modelRoot.visible=false;photorealMeshesBySource.set(source,partMeshes);photorealRoots.set(source,modelRoot);scene.add(modelRoot);
   new GLTFLoader().load(url,gltf=>{const model=gltf.scene;makePhotorealWhite(model);fitRealModel(model,rotation);modelRoot.add(model);model.updateMatrixWorld(true,true);const realMeshes=[];model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;realMeshes.push(o)}});realMeshes.forEach(mesh=>splitRealMesh(mesh,partMeshes));const missing=PARTS.map(p=>p.id).filter(id=>!partMeshes.get(p.id).length);modelRoot.userData.loaded=true;console.info(`${source} part triangle buckets`,Object.fromEntries(PARTS.map(p=>[p.id,partMeshes.get(p.id).length])));if(missing.length)console.warn(`${source} unavailable parts`,missing);if(modelSource===source){modelRoot.visible=true;root.visible=false;frameRealModel(modelRoot)}if(source==='real'&&modelSource==='highland-2026'&&photorealRoots.get('highland-2026')?.userData.failed)activateRealBackup();update()},undefined,()=>{modelRoot.userData.failed=true;if(source==='highland-2026'){loadRealModel('real',photorealSpecs.real.url,photorealSpecs.real.rotation);if(!activateRealBackup())flash('Highland indisponibil · se încarcă Model 3 fotorealist')}else if(modelSource===source){root.visible=true;modelRoot.visible=false;flash(`${source} indisponibil · fallback procedural activ`)}});
+}
+// Keep the parsed source scene visible if mobile Safari cannot complete the
+// optional triangle segmentation step. This later declaration intentionally
+// overrides the older loader above while preserving its public call sites.
+function loadRealModel(source,url,rotation){
+  if(photorealRoots.has(source))return;
+  const partMeshes=new Map(PARTS.map(p=>[p.id,[]])),modelRoot=new THREE.Group();
+  modelRoot.visible=false;photorealMeshesBySource.set(source,partMeshes);photorealRoots.set(source,modelRoot);scene.add(modelRoot);
+  new GLTFLoader().load(url,gltf=>{
+    const model=gltf.scene;makePhotorealWhite(model);fitRealModel(model,rotation);modelRoot.add(model);model.updateMatrixWorld(true,true);
+    const realMeshes=[];model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;realMeshes.push(o)}});
+    let splitError=null;
+    try{realMeshes.forEach(mesh=>splitRealMesh(mesh,partMeshes))}catch(error){splitError=error;console.error(`${source} split failed; keeping original meshes`,error);model.traverse(o=>{if(o.isMesh)o.visible=true})}
+    const missing=PARTS.map(p=>p.id).filter(id=>!partMeshes.get(id).length);modelRoot.userData.loaded=true;modelRoot.userData.splitError=splitError;
+    console.info(`${source} loaded`,{meshes:realMeshes.length,splitError:splitError?.message||null,parts:Object.fromEntries(PARTS.map(p=>[p.id,partMeshes.get(p.id).length]))});
+    if(missing.length)console.warn(`${source} unavailable parts`,missing);
+    if(modelSource===source){modelRoot.visible=true;root.visible=false;frameRealModel(modelRoot);if(splitError)flash(`${source} încărcat · segmentarea pieselor a eșuat`)}
+    if(source==='real'&&modelSource==='highland-2026'&&photorealRoots.get('highland-2026')?.userData.failed)activateRealBackup();update()
+  },undefined,error=>{
+    modelRoot.userData.failed=true;console.error(`${source} load failed`,error);
+    if(source==='highland-2026'){loadRealModel('real',photorealSpecs.real.url,photorealSpecs.real.rotation);if(!activateRealBackup())flash(`Highland indisponibil · ${error?.message||'eroare GLTF'}`)}
+    else if(modelSource===source){root.visible=true;modelRoot.visible=false;flash(`${source} indisponibil · fallback procedural activ`)}
+  });
 }
 // Load only the selected GLB initially; the other photoreal model is lazy-loaded
 // to avoid parsing two large assets simultaneously on iPhone Safari.
