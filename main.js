@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const PARTS=[['front-bumper','Front bumper','Body','01','bumper'],['hood','Hood','Body','02','hood'],['windshield','Windshield','Glass','03','windshield'],['roof','Glass roof','Glass','04','roof'],['trunk','Trunk lid','Body','05','trunk'],['rear-bumper','Rear bumper','Body','06','bumper'],['front-left-door','Front left door','Body','07','door'],['front-right-door','Front right door','Body','08','door'],['rear-left-door','Rear left door','Body','09','door'],['rear-right-door','Rear right door','Body','10','door'],['mirrors','Side mirrors','Body','11','mirrors'],['seats','Interior seats','Interior','12','seats'],['dashboard','Dashboard','Interior','13','dashboard'],['battery','Battery pack','Chassis','14','battery'],['front-wheels','Front wheels','Chassis','15','wheel'],['rear-wheels','Rear wheels','Chassis','16','wheel']].map(([id,name,group,icon,kind])=>({id,name,group,icon,kind}));
 const removed=new Set(),meshes=new Map(),photorealMeshesBySource=new Map(),photorealRoots=new Map(),sceneEl=document.querySelector('#scene');
@@ -98,7 +99,9 @@ function loadRealModel(source,url,rotation){
   const partMeshes=new Map(PARTS.map(p=>[p.id,[]])),modelRoot=new THREE.Group();
   modelRoot.visible=false;photorealMeshesBySource.set(source,partMeshes);photorealRoots.set(source,modelRoot);scene.add(modelRoot);
   if(source==='highland-2026')loadingState('READING TAPE · MODEL 3');
-  new GLTFLoader().load(url,gltf=>{
+  const loader=new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.load(url,gltf=>{
     const model=gltf.scene;makePhotorealWhite(model,source);fitRealModel(model,rotation);modelRoot.add(model);model.updateMatrixWorld(true,true);
     const realMeshes=[];model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;realMeshes.push(o)}});
     let splitError=null;
