@@ -63,11 +63,11 @@ function fitRealModel(model,rotation){
 }
 function frameRealModel(modelRoot){
   const bounds=new THREE.Box3().setFromObject(modelRoot),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
-  const radius=Math.max(size.x,size.y,size.z),distance=Math.max(9,radius/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2))*1.35);
+  const radius=Math.max(size.x,size.y,size.z),distance=Math.max(9,radius/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2))*1.65);
   // Start from the requested front-left three-quarter view. A slightly raised
   // look target moves the vehicle down in the mobile viewport, leaving room
   // above the glass roof instead of clipping it at startup.
-  const viewTarget=center.clone().add(new THREE.Vector3(0,.78,0));camera.position.copy(viewTarget).add(new THREE.Vector3(-1,.58,-1).normalize().multiplyScalar(distance));controls.target.copy(viewTarget);controls.update();
+  const viewTarget=center.clone().add(new THREE.Vector3(0,-.25,0));camera.position.copy(viewTarget).add(new THREE.Vector3(-1,.58,-1).normalize().multiplyScalar(distance));controls.target.copy(viewTarget);controls.update();
 }
 let explodeMode=false,flightMode=false,flightClock=0;
 function loadingState(text,done=false,error=false){const overlay=document.querySelector('#loadingOverlay');if(!overlay)return;overlay.classList.toggle('is-hidden',done);overlay.classList.toggle('error',error);const label=document.querySelector('#loadingText');if(label)label.textContent=text}

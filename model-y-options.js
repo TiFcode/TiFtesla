@@ -18,3 +18,4 @@ if (select) {
 }
 document.querySelector('#modeTitle')?.closest('.viewport-head')?.querySelector('.eyebrow')?.replaceChildren('WHITE PEARL / TESLA');
 document.querySelector('#scene')?.setAttribute('aria-label', 'Interactive 3D Tesla workshop');
+document.querySelector('#panelTitle')?.replaceChildren('Take the Model Y Juniper 2025 apart');
