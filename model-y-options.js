@@ -13,9 +13,9 @@ if (select) {
       select.insertBefore(option, anchor);
     }
   });
-  select.value = 'model-y-juniper';
+  select.value = 'highland-2026';
   select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 document.querySelector('#modeTitle')?.closest('.viewport-head')?.querySelector('.eyebrow')?.replaceChildren('WHITE PEARL / TESLA');
 document.querySelector('#scene')?.setAttribute('aria-label', 'Interactive 3D Tesla workshop');
-document.querySelector('#panelTitle')?.replaceChildren('Take the Model Y Juniper 2025 apart');
+document.querySelector('#panelTitle')?.replaceChildren('Take the Model 3 Highland 2026 apart');
